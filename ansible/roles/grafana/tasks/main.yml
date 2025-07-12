@@ -1,0 +1,60 @@
+---
+# 1. Install Grafana
+- name: Install prerequisite packages
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - software-properties-common
+    state: present
+
+- name: Add Grafana GPG key
+  ansible.builtin.get_url:
+    url: https://apt.grafana.com/gpg.key
+    dest: /etc/apt/keyrings/grafana.asc
+    mode: '0644'
+    force: yes
+
+- name: Add Grafana repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/grafana.asc] https://apt.grafana.com stable main"
+    state: present
+
+- name: Install Grafana
+  ansible.builtin.apt:
+    name: grafana
+    update_cache: yes
+    state: present
+
+# 2. Start Grafana Service and reset admin password
+- name: Ensure Grafana service is started and enabled on boot
+  ansible.builtin.systemd:
+    name: grafana-server
+    state: started
+    enabled: yes
+
+- name: Reset Grafana admin password to the one in the vault
+  ansible.builtin.command:
+    cmd: "grafana-cli admin reset-admin-password '{{ grafana_admin_password }}'"
+  changed_when: false # This command doesn't provide reliable change output
+
+# 3. Configure Grafana
+# roles/grafana/tasks/main.yml (Corrected)
+
+- name: Configure Prometheus as a Grafana data source
+  community.grafana.grafana_datasource:
+    grafana_url: "http://localhost:3000"
+    grafana_user: "admin"
+    grafana_password: "{{ grafana_admin_password }}"
+    name: "Prometheus"
+    ds_type: "prometheus"
+    ds_url: "http://{{ hostvars[groups['prometheus_server'][0]]['inventory_hostname'] }}:9090"
+    access: "proxy"
+    is_default: true
+
+- name: Import Node Exporter dashboard
+  community.grafana.grafana_dashboard:
+    grafana_url: "http://localhost:3000"
+    grafana_user: "admin"
+    grafana_password: "{{ grafana_admin_password }}"
+    dashboard_id: 1860
+    overwrite: yes
