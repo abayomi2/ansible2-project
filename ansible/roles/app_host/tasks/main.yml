@@ -38,6 +38,12 @@
     update_cache: yes
 
 # 2. Install Docker SDK for Ansible and Start Service
+- name: Add ubuntu user to the docker group
+  ansible.builtin.user:
+    name: ubuntu
+    groups: docker
+    append: yes
+
 - name: Install Docker SDK for Python
   ansible.builtin.apt:
     name: python3-docker
@@ -53,9 +59,9 @@
 - name: Pull and run application container
   community.docker.docker_container:
     name: my-app
-    image: "abayomi2/my-simple-app:v6" # 👈 IMPORTANT: Change this!
+    image: "abayomi2/abe-app:2.0" # 👈 IMPORTANT: Change this!
     state: started
     restart_policy: always
     ports:
-      - "8080:8080"
+      - "8080:80"
 
