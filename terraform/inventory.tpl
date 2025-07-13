@@ -11,4 +11,3 @@ ${host}
 
 [all:vars]
 ansible_user=ubuntu
-ansible_ssh_private_key_file=~/project8/prod-kp.pem
