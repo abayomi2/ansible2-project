@@ -30,11 +30,20 @@ jobs:
         run: terraform apply -auto-approve
         working-directory: ./terraform
 
+      # 👇 NEW STEP: Read the inventory file's content into an output variable
+      - name: Read Ansible Inventory
+        id: inventory
+        run: echo "content=$(cat ansible/inventory/production.ini)" >> $GITHUB_OUTPUT
+        working-directory: . # Run from the root directory
+
+      # 👇 MODIFIED STEP: Use the content from the previous step
       - name: Run Ansible Playbook
         uses: dawidd6/action-ansible-playbook@v2
         with:
           playbook: main-playbook.yml
           directory: ./ansible
           key: ${{ secrets.AWS_SSH_PRIVATE_KEY }}
-          inventory: inventory/production.ini
+          # Use the content of the file, not the path
+          inventory: ${{ steps.inventory.outputs.content }}
           vault_password: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
+
