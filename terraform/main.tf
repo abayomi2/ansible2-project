@@ -17,7 +17,7 @@ resource "aws_security_group" "grafana_sg" {
     from_port   = 3000 # Standard Grafana port
     to_port     = 3000
     protocol    = "tcp"
-    cidr_blocks = ["101.191.163.18/32"] # 👈 IMPORTANT YOUR_HOME_OR_OFFICE_IP/32
+    cidr_blocks = ["0.0.0.0/0"] # 👈 IMPORTANT YOUR_HOME_OR_OFFICE_IP/32
   }
   egress {
   from_port   = 0
