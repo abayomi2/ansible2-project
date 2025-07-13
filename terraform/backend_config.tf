@@ -9,7 +9,7 @@ terraform {
     region = "us-east-1"
 
     # Replace with the unique table name you chose
-    dynamodb_table = "terraform-state-lock-prod"
+  #  dynamodb_table = "terraform-state-lock-prod"
     encrypt        = true
   }
 }

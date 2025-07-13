@@ -1,7 +1,7 @@
 Production-Grade Application Deployment with Terraform and Ansible
 This project automates the deployment of a containerized application and a full observability stack (Prometheus & Grafana) on AWS. It follows Infrastructure as Code (IaC) and Configuration Management best practices to create a secure, scalable, and repeatable production-grade environment.
 
-This document provides a complete guide from setup to deployment, incorporating lessons learned from a full debugging cycle.
+This document provides a complete, end-to-end guide, including one-time setup, manual deployment, CI/CD automation, and a full troubleshooting reference based on real-world debugging.
 
 Table of Contents
 Architecture
@@ -12,19 +12,15 @@ Project Structure
 
 Prerequisites
 
-Deployment Guide
+Part 1: One-Time Backend Setup (Manual)
 
-Step 1: Environment Setup
+Part 2: Local Project Configuration
 
-Step 2: Provision Infrastructure
+Part 3: Automated Deployment via CI/CD
 
-Step 3: Configure Servers
+Part 4: Verification and Access
 
-Step 4: Verify the Deployment
-
-Troubleshooting Common Issues
-
-Next Steps: CI/CD Automation
+Troubleshooting Guide
 
 Cleanup
 
@@ -33,9 +29,11 @@ This project uses a decoupled architecture where infrastructure provisioning is 
 
 Terraform: Provisions all necessary AWS resources, including:
 
+A remote backend using S3 for state storage and DynamoDB for state locking.
+
 Three EC2 instances (for the Application, Prometheus, and Grafana).
 
-Three granular Security Groups to enforce a strict network firewall, allowing traffic only where necessary and ensuring services communicate over their private IPs.
+Three granular Security Groups to enforce a strict network firewall.
 
 An SSH key pair for secure access.
 
@@ -43,74 +41,67 @@ After provisioning, Terraform dynamically generates an inventory file for Ansibl
 
 Ansible: Configures the provisioned EC2 instances using a role-based structure:
 
-common: Installs common packages and sets up basic security on all servers.
+common: Installs common packages on all servers.
 
 app_host: Installs Docker and deploys the specified containerized application.
 
 node_exporter: Installs and runs Node Exporter on the application host to collect system metrics.
 
-prometheus: Installs and configures Prometheus on its dedicated server. It's configured to scrape metrics from Node Exporter using the server's private IP address and load critical alerting rules.
+prometheus: Installs and configures Prometheus. It's configured to scrape metrics from Node Exporter using the server's private IP and load critical alerting rules.
 
-grafana: Installs and configures Grafana. It automatically adds Prometheus as a data source (using its private IP) and imports a complete, pre-configured "Node Exporter Full" dashboard from a local JSON file.
+grafana: Installs and configures Grafana. It automatically adds Prometheus as a data source (using its private IP) and imports a complete, pre-configured dashboard from a local JSON file.
 
-Observability Flow:
+CI/CD with GitHub Actions:
 
-Node Exporter exposes metrics on the app server (port 9100).
-
-Prometheus scrapes these metrics over the private network (port 9090).
-
-Grafana queries Prometheus over the private network and visualizes the data (port 3000).
+A complete workflow automates the terraform apply and ansible-playbook steps on every push to the main branch, ensuring continuous deployment.
 
 Features
-Fully Automated Deployment: From cloud resources to application code, the entire stack is deployed automatically.
+Fully Automated Deployment: A push to the main branch triggers a complete deployment.
 
-Infrastructure as Code (IaC): All infrastructure is defined in Terraform, ensuring consistency and version control.
+Centralized State Management: Uses an S3 remote backend to securely manage Terraform state, making it safe for team collaboration and CI/CD.
 
-Configuration as Code: Server state is defined using Ansible Roles, promoting modularity and reusability.
+Infrastructure as Code (IaC): All infrastructure is defined in Terraform for consistency and version control.
+
+Configuration as Code: Server state is defined using Ansible Roles for modularity and reusability.
 
 Secure by Default:
 
-Uses SSH keys for access (no password authentication).
+Uses SSH keys for access.
 
 Implements the principle of least privilege with strict Security Group rules.
 
-Manages secrets (like the Grafana password) securely using Ansible Vault.
+Manages secrets securely using Ansible Vault.
 
-Production-Ready Observability:
-
-A complete monitoring and visualization stack is set up.
-
-Prometheus alerting rules are included for high CPU, memory, and disk usage.
-
-A comprehensive Grafana dashboard is deployed from a local file for consistent, detailed visualization.
-
-Idempotent: Both Terraform and Ansible playbooks can be run multiple times, with the system converging to the same desired state without errors.
+Production-Ready Observability: A complete monitoring and visualization stack is set up with pre-configured alerts and a comprehensive Grafana dashboard.
 
 Project Structure
 .
+├── .github/workflows/
+│   └── deploy.yml            # CI/CD pipeline definition
 ├── ansible/
 │   ├── roles/
 │   │   ├── app_host/
 │   │   ├── common/
 │   │   ├── grafana/
 │   │   │   └── files/
-│   │   │       └── node_exporter_dashboard.json  # Corrected dashboard
+│   │   │       └── node_exporter_dashboard.json
 │   │   ├── node_exporter/
 │   │   └── prometheus/
 │   │       └── templates/
-│   │           └── alert.rules.yml.j2          # Alerting rules
-│   ├── group_vars/
-│   │   └── all/
-│   │       └── vault.yml                       # Encrypted secrets
+│   │           └── alert.rules.yml.j2
+│   ├── group_vars/all/
+│   │   └── vault.yml
 │   ├── inventory/
-│   │   └── production.ini                      # Dynamically generated
-│   ├── ansible.cfg                             # Ansible configuration
-│   └── main-playbook.yml                       # Main playbook
+│   │   └── production.ini    # Dynamically generated
+│   ├── ansible.cfg
+│   └── main-playbook.yml
 ├── terraform/
 │   ├── main.tf
 │   ├── outputs.tf
-│   └── inventory.tpl
-└── prod-kp.pem                                 # SSH Private Key
+│   ├── inventory.tpl
+│   ├── create_backend.tf     # For one-time setup
+│   └── backend_config.tf     # Configures the remote backend
+└── prod-kp.pem
 
 Prerequisites
 AWS Account: With credentials configured for the AWS CLI.
@@ -127,18 +118,50 @@ Docker Hub Image: A containerized application image pushed to Docker Hub.
 
 WSL (for Windows users): It is critical to run this project from within the WSL home directory (~/), not from a mounted Windows drive (/mnt/c/).
 
-Deployment Guide
-Step 1: Environment Setup
+Part 1: One-Time Backend Setup (Manual)
+This foundational step creates the secure backend for your Terraform state. It only needs to be performed once.
+
 Clone the Repository into your WSL Home:
 
 cd ~
 git clone <your-repo-url>
 cd <your-project-directory>
 
+Configure Backend Files:
+
+In terraform/create_backend.tf, change the default value for bucket_name to a globally unique name.
+
+In terraform/backend_config.tf, update the bucket value to match the name you just chose.
+
+Temporarily Hide Backend Config: Terraform cannot create its own backend while also trying to use it. Hide the configuration first:
+
+cd terraform
+mv backend_config.tf backend_config.tf.hidden
+
+Initialize and Create Backend Resources:
+
+terraform init
+# The -target flag ensures only the backend resources are created
+terraform apply -target=aws_s3_bucket.terraform_state -target=aws_dynamodb_table.terraform_locks
+
+Answer yes when prompted.
+
+Restore Backend Config and Migrate State:
+
+mv backend_config.tf.hidden backend_config.tf
+# Re-initialize to connect to the new backend and migrate the local state
+terraform init -migrate-state
+
+Type yes to approve the migration. Your state is now securely stored in S3.
+
+Part 2: Local Project Configuration
+These steps prepare your local project files before letting the CI/CD pipeline take over.
+
 Set File and Directory Permissions:
 
 This is a critical step to avoid file access errors with WSL and Ansible.
 
+cd ~/your-project-directory
 # Fix all directory permissions
 find . -type d -exec chmod 755 {} \;
 # Fix all file permissions
@@ -146,11 +169,11 @@ find . -type f -exec chmod 644 {} \;
 # Re-secure your private key
 chmod 600 prod-kp.pem
 
-Configure Terraform:
-
-In terraform/main.tf, update the cidr_blocks for SSH (port 22) and UI access (ports 3000, 9090) to your personal or office IP address.
+Configure Terraform main.tf:
 
 Ensure the key_name in the aws_instance resources matches your AWS key pair name.
+
+For the CI/CD pipeline to work, the security group ingress rules for ports 22 (SSH) and 3000 (Grafana) must be open to 0.0.0.0/0.
 
 Configure Ansible:
 
@@ -158,40 +181,39 @@ Create the Vault:
 
 ansible-vault create ansible/group_vars/all/vault.yml
 
-Add your desired Grafana admin password to the vault file:
-grafana_admin_password: "YourSecurePassword"
+Add your desired Grafana admin password to the vault file: grafana_admin_password: "YourSecurePassword"
 
-Update Docker Image: In ansible/roles/app_host/tasks/main.yml, update the image parameter in the docker_container task to point to your Docker Hub image and tag.
+Update Docker Image: In ansible/roles/app_host/tasks/main.yml, update the image parameter and port mapping to match your application.
 
-Update Docker Port Mapping: Ensure the port mapping in the same task is correct for your application (e.g., "8080:80" if your container listens on port 80).
+Commit All Changes:
 
-Step 2: Provision Infrastructure with Terraform
-Navigate to the Terraform directory:
+Commit backend_config.tf, main.tf, your Ansible role changes, and all other files to your repository.
 
-cd terraform/
+Part 3: Automated Deployment via CI/CD
+Add Secrets to GitHub:
 
-Initialize and Apply:
+Go to your GitHub repository settings: Settings > Secrets and variables > Actions.
 
-terraform init
-terraform apply -auto-approve
+Add the following repository secrets:
 
-This creates all AWS resources and generates ansible/inventory/production.ini.
+AWS_ACCESS_KEY_ID
 
-Step 3: Configure Servers with Ansible
-Navigate to the Ansible directory:
+AWS_SECRET_ACCESS_KEY
 
-cd ../ansible/
+AWS_SSH_PRIVATE_KEY (Paste the full content of your .pem file)
 
-Run the Ansible Playbook:
+ANSIBLE_VAULT_PASSWORD
 
-You will be prompted for the vault password you created earlier.
+Push to main:
 
-ansible-playbook -i inventory/production.ini main-playbook.yml --ask-vault-pass
+Push your committed changes to the main branch.
 
-Step 4: Verify the Deployment
+The GitHub Actions workflow defined in .github/workflows/deploy.yml will automatically trigger, provisioning and configuring your entire stack.
+
+Part 4: Verification and Access
 Application: http://<app_host_public_ip>:8080
 
-Prometheus: http://<prometheus_public_ip>:9090 (Check the "Targets" and "Alerts" pages)
+Prometheus: http://<prometheus_public_ip>:9090
 
 Grafana: http://<grafana_public_ip>:3000
 
@@ -199,28 +221,34 @@ User: admin
 
 Password: The password from your Ansible Vault.
 
-Navigate to the "Node Exporter Full" dashboard to see your populated metrics.
+Troubleshooting Guide
+CI/CD Fails with Duplicate Security Group: The Terraform remote backend is not configured correctly. See Part 1.
 
-Troubleshooting Common Issues
-UNPROTECTED PRIVATE KEY FILE: Your .pem key has the wrong permissions. Run chmod 600 prod-kp.pem.
+CI/CD Fails with Connection timed out on port 22 or 3000: The security group rules for these ports are not open to 0.0.0.0/0, blocking the GitHub Actions runner.
 
-No such file or directory for JSON file: This is a file permissions issue on your local machine. Run the find ... -exec chmod ... commands from Step 1 again.
+Ansible Fails with UNPROTECTED PRIVATE KEY FILE: Your .pem key has the wrong permissions. Run chmod 600 prod-kp.pem.
 
-Prometheus Target "DOWN" with "context deadline exceeded": This means Prometheus cannot connect to Node Exporter. Ensure your prometheus.yml.j2 template uses the server's private IP (ansible_default_ipv4.address).
+Ansible Fails with No such file or directory for JSON file: A file/directory permission issue on your local machine. Run the find ... -exec chmod ... commands from Part 2.
 
-Grafana shows "No data": This means Grafana cannot connect to Prometheus. Ensure your grafana role configures the data source with the Prometheus server's private IP.
+Prometheus Target "DOWN": Your prometheus.yml.j2 template is likely using a public IP. Ensure it uses the private IP (ansible_default_ipv4.address).
 
-Next Steps: CI/CD Automation
-Now that the manual deployment is perfected, the final step is to automate it with a GitHub Actions workflow. Create a file at .github/workflows/deploy.yml to run the terraform apply and ansible-playbook commands automatically on every push to your main branch.
+Grafana shows "No data": Your Grafana data source is likely configured with a public IP. Ensure the grafana role uses the Prometheus server's private IP.
 
 Cleanup
-To avoid ongoing AWS charges, destroy all created resources when you are finished.
+To avoid ongoing AWS charges, destroy all created resources.
 
-Navigate to the Terraform directory:
+Temporarily Disable Deletion Protection:
 
-cd ../terraform/
+In terraform/create_backend.tf, comment out the lifecycle { prevent_destroy = true } block.
 
-Destroy all resources:
+Run terraform apply -auto-approve to apply this change.
 
-terraform destroy -auto-approve
+Destroy Application Infrastructure:
 
+Run terraform destroy -auto-approve. This will destroy the EC2 instances and their security groups.
+
+Destroy Backend Infrastructure:
+
+You may need to manually empty the S3 bucket first using the AWS CLI: aws s3 rm s3://<your-bucket-name> --recursive.
+
+Run terraform destroy -auto-approve again to delete the S3 bucket and DynamoDB table.

@@ -21,9 +21,9 @@ resource "aws_s3_bucket" "terraform_state" {
   bucket = var.bucket_name
 
   # Prevent accidental deletion of the state file
-  lifecycle {
-    prevent_destroy = true
-  }
+ # lifecycle {
+#    prevent_destroy = true
+#  }
 
   # Enable versioning to keep a history of your state files
   versioning {
