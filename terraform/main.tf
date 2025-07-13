@@ -11,7 +11,7 @@ resource "aws_security_group" "grafana_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["101.191.163.18/32"] # 👈 IMPORTANT change to your office IP/32
+    cidr_blocks = ["0.0.0.0/0"] # 👈 IMPORTANT change to your office IP/32
   }
   ingress {
     from_port   = 3000 # Standard Grafana port
@@ -35,7 +35,7 @@ resource "aws_security_group" "prometheus_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["101.191.163.18/32"] # 👈 IMPORTANT change to your office IP/32
+    cidr_blocks = ["0.0.0.0/0"] # 👈 IMPORTANT change to your office IP/32
   }
   # Allow traffic from Grafana for scraping
   ingress {
@@ -65,7 +65,7 @@ resource "aws_security_group" "app_host_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["101.191.163.18/32"] # 👈 IMPORTANT change to your office IP/32
+    cidr_blocks = ["0.0.0.0/0"] # 👈 IMPORTANT change to your office IP/32
   }
   # Allow traffic from Prometheus for Node Exporter
   ingress {
