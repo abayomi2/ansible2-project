@@ -61,6 +61,15 @@
     mode: '0644'
   notify: Restart Prometheus
 
+- name: Copy alerting rules file
+  ansible.builtin.template:
+    src: alert.rules.yml.j2
+    dest: /etc/prometheus/alert.rules.yml
+    owner: prometheus
+    group: prometheus
+    mode: '0644'
+  notify: Restart Prometheus
+
 - name: Create systemd service file for Prometheus
   ansible.builtin.template:
     src: prometheus.service.j2

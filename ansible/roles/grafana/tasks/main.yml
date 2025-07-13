@@ -47,14 +47,19 @@
     grafana_password: "{{ grafana_admin_password }}"
     name: "Prometheus"
     ds_type: "prometheus"
-    ds_url: "http://{{ hostvars[groups['prometheus_server'][0]]['inventory_hostname'] }}:9090"
+    ds_url: "http://{{ hostvars[groups['prometheus_server'][0]].ansible_default_ipv4.address }}:9090"
     access: "proxy"
     is_default: true
 
-- name: Import Node Exporter dashboard
+# roles/grafana/tasks/main.yml (Final Corrected Version)
+# roles/grafana/tasks/main.yml (Final Corrected Version)
+- name: Import Node Exporter dashboard from local file
   community.grafana.grafana_dashboard:
-    grafana_url: "http://localhost:3000"
+    # 👇 This now points to the remote Grafana server's IP
+    grafana_url: "http://{{ inventory_hostname }}:3000"
     grafana_user: "admin"
     grafana_password: "{{ grafana_admin_password }}"
-    dashboard_id: 1860
+    path: "{{ playbook_dir }}/roles/grafana/files/node_exporter_dashboard.json"
     overwrite: yes
+  delegate_to: localhost # Runs the task on your local machine
+  become: no             # Tells this specific task NOT to use sudo

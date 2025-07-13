@@ -1,0 +1,30 @@
+# roles/prometheus/templates/alert.rules.yml.j2 (Corrected)
+groups:
+- name: HostAlerts
+  rules:
+  - alert: HighCpuUsage
+    expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100) > 80
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High CPU usage on {% raw %}{{ $labels.instance }}{% endraw %}"
+      description: "CPU usage has been above 80% for the last 5 minutes on instance {% raw %}{{ $labels.instance }}{% endraw %}."
+
+  - alert: HighMemoryUsage
+    expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 < 10
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High memory usage on {% raw %}{{ $labels.instance }}{% endraw %}"
+      description: "Less than 10% of memory is available on instance {% raw %}{{ $labels.instance }}{% endraw %}."
+
+  - alert: LowDiskSpace
+    expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 20
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Low disk space on {% raw %}{{ $labels.instance }}{% endraw %}"
+      description: "Less than 20% of disk space is free on the root filesystem of instance {% raw %}{{ $labels.instance }}{% endraw %}."
